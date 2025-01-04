@@ -879,7 +879,7 @@ def show_logo():
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 """
     print(logo)
-    print("\nIniChain Bot v1.0 - Automated Daily Check-in & Swap by Aethereal")
+    print("\nIniChain Bot v1.1 - Automated Daily Check-in & Swap by Aethereal")
     print("=================================================")
 
 def main():
