@@ -10,6 +10,7 @@ Bot otomatis untuk melakukan daily check-in dan swap token di IniChain/Initverse
 - Swap otomatis INI ⟷ USDT dengan strategi:
   - INI ke USDT: 10-25% dari saldo aman
   - USDT ke INI: 80-90% dari saldo USDT
+- Create Token dengan parameter yang dioptimalkan
 - Auto cycle swap setiap 10 menit
 - Monitoring status akun dan riwayat transaksi
 - Support multiple accounts
@@ -22,15 +23,21 @@ Bot otomatis untuk melakukan daily check-in dan swap token di IniChain/Initverse
 
 ## Instalasi
 1. Clone repository ini
-2. Install dependencies:
+2. Setup Virtual Environment
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
+```
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
-3. Buat file `.env` dan isi private key:
-```
-PRIVATE_KEYS=your_private_key1,your_private_key2,...
-```
-Atau tambahkan satu private key per baris:
+4. Buat file `privatekey.txt` dan tambahkan private key (satu key per baris):
 ```
 0x123...abc
 0x456...def
@@ -43,10 +50,13 @@ python bot.py
 ```
 
 2. Pilih menu yang tersedia:
-   - `1`: Daily Check-in
-   - `2`: Swap (otomatis memilih arah swap berdasarkan saldo)
-   - `3`: Status (cek saldo dan riwayat transaksi)
-   - `4`: Keluar
+   - `1`: Check Status
+   - `2`: Daily Check-in
+   - `3`: Swap INI-USDT
+   - `4`: Create Token
+   - `5`: Exit
+
+3. Saran Step yang dilakukan : Create Token -> Daily Checkin -> Swap
 
 ## Troubleshooting
 1. Error `pkg_resources`:
