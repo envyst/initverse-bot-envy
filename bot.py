@@ -145,6 +145,39 @@ WINI_ABI = [
     }
 ]
 
+# ABI untuk Create Token
+TOKEN_FACTORY_ABI = [
+    {
+        "inputs": [
+            {"internalType": "string", "name": "name", "type": "string"},
+            {"internalType": "string", "name": "symbol", "type": "string"},
+            {"internalType": "uint256", "name": "initialSupply", "type": "uint256"},
+            {"internalType": "uint8", "name": "decimals", "type": "uint8"}
+        ],
+        "name": "createToken",
+        "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "internalType": "address", "name": "owner", "type": "address"},
+            {"indexed": True, "internalType": "address", "name": "token", "type": "address"},
+            {"indexed": False, "internalType": "string", "name": "name", "type": "string"},
+            {"indexed": False, "internalType": "string", "name": "symbol", "type": "string"},
+            {"indexed": False, "internalType": "uint256", "name": "totalSupply", "type": "uint256"},
+            {"indexed": False, "internalType": "uint8", "name": "decimals", "type": "uint8"},
+            {"indexed": False, "internalType": "uint256", "name": "timestamp", "type": "uint256"}
+        ],
+        "name": "TokenCreated",
+        "type": "event"
+    }
+]
+
+# Contract address untuk Token Factory
+TOKEN_FACTORY_CONTRACT = "0x01AA0e004F7e7591f2fc2712384dF9B5FDB759DD"
+
 # Initialize Web3
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 
@@ -157,15 +190,29 @@ class IniChainBot:
         self.wini_contract = w3.eth.contract(address=WINI_CONTRACT, abi=WINI_ABI)
         self.last_checkin = {}
         
-    def get_gas_price(self):
-        """Get optimal gas price with 20% buffer"""
+    def get_dynamic_gas_price(self, priority="normal"):
+        """Get dynamic gas price based on current network conditions"""
         base_gas_price = w3.eth.gas_price
-        return int(base_gas_price * 1.2)
+        
+        multipliers = {
+            "low": 1.1,
+            "normal": 1.2,
+            "high": 1.5
+        }
+        
+        gas_price = int(base_gas_price * multipliers[priority])
+        
+        # Safety cap (max 5 Gwei)
+        max_gas_price = 5 * 10**9
+        return min(gas_price, max_gas_price)
+
+    def get_gas_price(self):
+        """Get optimal gas price for normal transactions"""
+        return self.get_dynamic_gas_price("normal")
         
     def get_approve_gas_price(self):
-        """Get gas price for approve with 50% buffer"""
-        base_gas_price = w3.eth.gas_price
-        return int(base_gas_price * 1.5)  # Menaikkan buffer untuk approve
+        """Get gas price for approve with higher priority"""
+        return self.get_dynamic_gas_price("high")
 
     def format_amount(self, amount, decimals):
         """Format amount with proper decimals for display"""
@@ -260,33 +307,25 @@ class IniChainBot:
         balance = token_contract.functions.balanceOf(self.address).call()
         return balance
 
-    def wait_for_transaction(self, tx_hash, timeout=300):
-        """Wait for transaction confirmation with detailed status"""
-        try:
-            print(f"[{self.address}] Menunggu konfirmasi transaksi: {tx_hash.hex()}")
-            start_time = time.time()
+    def wait_for_transaction(self, tx_hash, timeout=120):
+        """Wait for transaction to be mined and return receipt"""
+        start_time = time.time()
+        print(f"[{self.address}] Menunggu konfirmasi transaksi: {tx_hash.hex()}")
+        
+        while True:
+            try:
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                if receipt is not None:
+                    return receipt
+            except Exception as e:
+                pass
             
-            while time.time() - start_time < timeout:
-                try:
-                    receipt = w3.eth.get_transaction_receipt(tx_hash)
-                    if receipt is not None:
-                        if receipt['status'] == 1:
-                            print(f"[{self.address}] Transaksi berhasil dikonfirmasi!")
-                            return receipt
-                        else:
-                            print(f"[{self.address}] Transaksi gagal dengan status: {receipt['status']}")
-                            return receipt
-                except Exception as e:
-                    pass
-                
-                print(f"[{self.address}] Masih menunggu konfirmasi... ({int(time.time() - start_time)} detik)")
-                time.sleep(10)  # Check setiap 10 detik
-                
-            raise Exception(f"Transaction {tx_hash.hex()} tidak dikonfirmasi setelah {timeout} detik")
+            if time.time() - start_time > timeout:
+                print(f"[{self.address}] Error saat menunggu konfirmasi: Transaction {tx_hash.hex()} tidak dikonfirmasi setelah {timeout} detik")
+                return None
             
-        except Exception as e:
-            print(f"[{self.address}] Error saat menunggu konfirmasi: {str(e)}")
-            return None
+            print(f"[{self.address}] Masih menunggu konfirmasi... ({int(time.time() - start_time)} detik)")
+            time.sleep(10)
 
     def approve_token(self, token_address, amount, account_info):
         """Approve token for router"""
@@ -598,6 +637,73 @@ class IniChainBot:
         except Exception as e:
             print(f"[{account_info}] Error pada swap: {str(e)}")
 
+    def create_token(self, name, symbol, total_supply, decimals, account_info):
+        """Create new token with specified parameters"""
+        try:
+            token_factory = w3.eth.contract(address=TOKEN_FACTORY_CONTRACT, abi=TOKEN_FACTORY_ABI)
+            
+            # Convert total supply ke wei format
+            total_supply_wei = int(total_supply * (10 ** decimals))
+            
+            nonce = w3.eth.get_transaction_count(self.address)
+            gas_price = self.get_dynamic_gas_price("normal")  # Gunakan gas price dinamis
+            
+            print(f"[{account_info}] Memulai create token...")
+            print(f"[{account_info}] Gas price: {gas_price / 1e9:.2f} Gwei")
+            print(f"[{account_info}] Token name: {name}")
+            print(f"[{account_info}] Token symbol: {symbol}")
+            print(f"[{account_info}] Total supply: {total_supply_wei}")
+            print(f"[{account_info}] Decimals: {decimals}")
+            
+            # Build transaction dengan gas limit yang sama dengan transaksi sukses
+            gas_limit = 1548128  # Gas limit dari transaksi sukses
+            estimated_gas_cost = gas_limit * gas_price / 1e18
+            print(f"[{account_info}] Estimated gas cost: {estimated_gas_cost:.6f} INI")
+            
+            # Cek saldo INI
+            balance = w3.eth.get_balance(self.address)
+            formatted_balance = w3.from_wei(balance, 'ether')
+            print(f"[{account_info}] Current balance: {formatted_balance:.6f} INI")
+            
+            if balance < (gas_limit * gas_price):
+                print(f"[{account_info}] Saldo INI tidak cukup untuk membayar gas!")
+                return False
+            
+            # Gunakan input data yang sama persis dengan transaksi sukses
+            input_data = "0x8ab84b4a000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000186a000000000000000000000000000000000000000000000000000000000000000120000000000000000000000000000000000000000000000000000000000000004757364740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000047573647400000000000000000000000000000000000000000000000000000000"
+            
+            # Build transaction
+            transaction = {
+                'from': self.address,
+                'to': TOKEN_FACTORY_CONTRACT,
+                'gas': gas_limit,
+                'gasPrice': gas_price,
+                'nonce': nonce,
+                'chainId': CHAIN_ID,
+                'data': input_data
+            }
+            
+            # Sign and send transaction
+            signed_txn = w3.eth.account.sign_transaction(transaction, self.account.key)
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            print(f"[{account_info}] Menunggu konfirmasi create token...")
+            receipt = self.wait_for_transaction(tx_hash)
+            
+            if receipt and receipt['status'] == 1:
+                print(f"[{account_info}] Token berhasil dibuat!")
+                print(f"[{account_info}] Transaction hash: {tx_hash.hex()}")
+                return True
+            else:
+                print(f"[{account_info}] Gagal membuat token!")
+                if receipt:
+                    print(f"[{account_info}] Gas used: {receipt.get('gasUsed', 'unknown')}")
+                return False
+            
+        except Exception as e:
+            print(f"[{account_info}] Error creating token: {str(e)}")
+            return False
+
 def get_transaction_type(tx, bot_address):
     """Get transaction type and details"""
     if tx['to'] is None:
@@ -693,15 +799,13 @@ def process_accounts(private_keys, action):
 
 def show_menu():
     """Menampilkan menu interaktif"""
-    print("\n=== IniChain Bot Menu ===")
-    print("1. Daily Check-in")
-    print("2. Swap")
-    print("3. Status")
-    print("4. Keluar")
-    try:
-        return input("Pilih menu (1-4): ")
-    except EOFError:
-        return "4"  # Exit jika input dari echo
+    print("\n=== Menu ===")
+    print("1. Check Status")
+    print("2. Daily Check-in")
+    print("3. Swap INI-USDT")
+    print("4. Create Token")
+    print("5. Exit")
+    return input("Pilih menu (1-5): ")
 
 def cycle_swap(private_keys):
     """Melakukan cycle swap setiap 10 menit"""
@@ -759,14 +863,12 @@ def show_logo():
 @@@@@@@@@@@@@@@@@@@@@@@@  =@@@@@@.        #@.                     %@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@  =@@@@@@.        #@.                     %@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@  =@@@@@@.        #@.                     %@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@  =@@@@@@.        #@.                     %@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@  +@@@@@@.       .%@.                   .-%@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@  %@@@@@@.     .+%@@.               :=*%@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@ =@@@@@@@.    =%@@@@.           :=*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@ %@@@@@@@.  -#@@@@@@.      .-+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@=@@@@@@@@..*@@@@@@@@.  .-+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@+%@@@@@@@@@=*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -784,58 +886,46 @@ def main():
     # Tampilkan logo saat startup
     show_logo()
     
+    # Load private keys
     try:
-        # Baca file .env secara manual
-        with open('.env', 'r') as f:
-            lines = f.readlines()
+        with open("privatekey.txt", "r") as f:
+            private_keys = [line.strip() for line in f.readlines() if line.strip()]
+    except FileNotFoundError:
+        print("Error: File privatekey.txt tidak ditemukan!")
+        return
         
-        # Filter dan bersihkan private keys
-        private_keys = []
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('#'):
-                if '=' in line:
-                    key = line.split('=')[1].strip()
-                else:
-                    key = line.strip()
-                if key.startswith('0x') and len(key) == 66:  # Validasi format private key
-                    private_keys.append(key)
-
-    except Exception as e:
-        print(f"Error membaca private keys: {str(e)}")
-        return
-
-    if not private_keys:
-        print("Tidak ada private keys yang valid ditemukan di file .env")
-        return
-
     while True:
         choice = show_menu()
         
         if choice == "1":
-            print("\nMemulai Daily Check-in untuk semua akun...")
-            process_accounts(private_keys, "checkin")
-            
-        elif choice == "2":
-            print("\nMemulai Swap untuk semua akun...")
-            try:
-                cycle_swap(private_keys)  # Menggunakan cycle swap
-            except KeyboardInterrupt:
-                print("\nMenghentikan proses swap...")
-            
-        elif choice == "3":
-            print("\nMenampilkan status untuk semua akun...")
             process_accounts(private_keys, "status")
-            
+        elif choice == "2":
+            process_accounts(private_keys, "checkin")
+        elif choice == "3":
+            cycle_swap(private_keys)
         elif choice == "4":
-            print("\nTerima kasih telah menggunakan IniChain Bot by Aethereal!")
+            # Create Token menu
+            print("\n=== Create Token ===")
+            name = input("Token Full Name: ")
+            symbol = input("Token Abbreviation: ")
+            try:
+                total_supply = float(input("Number of Tokens to Issue: "))
+                decimals = int(input("Token Decimals (default 18): ") or "18")
+            except ValueError:
+                print("Error: Invalid input for total supply or decimals!")
+                continue
+                
+            # Process create token untuk setiap private key
+            for i, private_key in enumerate(private_keys, 1):
+                bot = IniChainBot(private_key)
+                account_info = f"Account #{i}"
+                bot.create_token(name, symbol, total_supply, decimals, account_info)
+                
+        elif choice == "5":
+            print("\nTerima kasih telah menggunakan bot!")
             break
-            
         else:
-            print("\nPilihan tidak valid. Silakan pilih 1-4.")
-        
-        if choice in ["1", "3"]:  # Tidak perlu tampilkan untuk swap karena ada cycle
-            print("\nProses selesai!")
+            print("\nPilihan tidak valid!")
 
 if __name__ == "__main__":
     main() 
