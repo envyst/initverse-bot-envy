@@ -797,6 +797,50 @@ def process_accounts(private_keys, action):
             show_status(private_key, i)
         time.sleep(5)  # Delay between accounts
 
+def auto_daily_and_swap(private_keys):
+    """Melakukan auto daily check-in dan swap secara berulang"""
+    cycle_count = 1
+    while True:
+        try:
+            print(f"\n{'='*50}")
+            print(f"Memulai cycle ke-{cycle_count}...")
+            print(f"{'='*50}")
+            
+            # Lakukan daily check-in
+            print("\nMemulai Daily Check-in...")
+            process_accounts(private_keys, "checkin")
+            print("Daily Check-in selesai!")
+            
+            # Tunggu 5 detik sebelum swap
+            print("\nMenunggu 5 detik sebelum memulai swap...")
+            time.sleep(5)
+            
+            # Lakukan swap
+            print("\nMemulai proses Swap...")
+            process_accounts(private_keys, "swap")
+            print("Proses Swap selesai!")
+            
+            print(f"\nCycle ke-{cycle_count} selesai")
+            print("Menunggu 10 menit untuk cycle berikutnya...")
+            
+            # Countdown timer
+            for i in range(600, 0, -1):  # 600 detik = 10 menit
+                minutes = i // 60
+                seconds = i % 60
+                print(f"\rWaktu menuju cycle berikutnya: {minutes:02d}:{seconds:02d}", end="")
+                time.sleep(1)
+            
+            print("\n")  # New line after countdown
+            cycle_count += 1
+            
+        except KeyboardInterrupt:
+            print("\nMenghentikan Auto Daily & Swap...")
+            break
+        except Exception as e:
+            print(f"\nError pada cycle: {str(e)}")
+            print("Mencoba melanjutkan ke cycle berikutnya...")
+            time.sleep(10)
+
 def show_menu():
     """Menampilkan menu interaktif"""
     print("\n=== Menu ===")
@@ -804,8 +848,9 @@ def show_menu():
     print("2. Daily Check-in")
     print("3. Swap INI-USDT")
     print("4. Create Token")
-    print("5. Exit")
-    return input("Pilih menu (1-5): ")
+    print("5. Auto (Daily & Swap)")
+    print("6. Exit")
+    return input("Pilih menu (1-6): ")
 
 def cycle_swap(private_keys):
     """Melakukan cycle swap setiap 10 menit"""
@@ -876,10 +921,9 @@ def show_logo():
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 """
     print(logo)
-    print("\nIniChain Bot v1.1 - Automated Daily Check-in, Create Token, and Swap by Aethereal")
+    print("\nIniChain Bot v1.0 - Automated Daily Check-in & Swap by Aethereal")
     print("=================================================")
 
 def main():
@@ -920,8 +964,12 @@ def main():
                 bot = IniChainBot(private_key)
                 account_info = f"Account #{i}"
                 bot.create_token(name, symbol, total_supply, decimals, account_info)
-                
         elif choice == "5":
+            print("\n=== Auto Daily & Swap ===")
+            print("Bot akan melakukan Daily Check-in dan Swap secara otomatis")
+            print("Tekan Ctrl+C untuk menghentikan")
+            auto_daily_and_swap(private_keys)
+        elif choice == "6":
             print("\nTerima kasih telah menggunakan bot!")
             break
         else:
