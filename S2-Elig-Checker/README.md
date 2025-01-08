@@ -14,13 +14,7 @@ Script Python untuk mengecek eligibilitas NFT InitVerse Season 2 berdasarkan wal
 
 ### Setup Environment
 
-1. Clone repository ini
-```bash
-git clone <repository-url>
-cd <repository-folder>
-```
-
-2. Buat virtual environment
+1. Buat virtual environment
 ```bash
 # Windows
 python -m venv venv
@@ -31,7 +25,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-3. Install dependencies
+2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
