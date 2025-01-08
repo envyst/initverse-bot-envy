@@ -1,6 +1,6 @@
 # InitVerse NFT Eligibility Checker
 
-Script Python untuk mengecek eligibilitas NFT InitVerse Season 2 berdasarkan wallet address.
+Script untuk mengecek eligibilitas NFT InitVerse Season 2
 
 ## Fitur
 
