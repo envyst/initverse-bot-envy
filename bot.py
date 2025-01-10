@@ -307,7 +307,7 @@ class IniChainBot:
         balance = token_contract.functions.balanceOf(self.address).call()
         return balance
 
-    def wait_for_transaction(self, tx_hash, timeout=300):
+    def wait_for_transaction(self, tx_hash, timeout=120):
         """Wait for transaction to be mined and return receipt"""
         start_time = time.time()
         print(f"[{self.address}] Menunggu konfirmasi transaksi: {tx_hash.hex()}")
@@ -819,6 +819,15 @@ def auto_daily_and_swap(private_keys):
             print("\nMemulai proses Swap...")
             process_accounts(private_keys, "swap")
             print("Proses Swap selesai!")
+
+            # Tunggu 5 detik sebelum send INI to self
+            print("\nMenunggu 5 detik sebelum memulai Send INI to Self...")
+            time.sleep(5)
+            
+            # Lakukan send INI to self
+            print("\nMemulai proses Send INI to Self...")
+            send_ini_to_self(private_keys)
+            print("Proses Send INI to Self selesai!")
             
             print(f"\nCycle ke-{cycle_count} selesai")
             print("Menunggu 10 menit untuk cycle berikutnya...")
@@ -848,9 +857,10 @@ def show_menu():
     print("2. Daily Check-in")
     print("3. Swap INI-USDT")
     print("4. Create Token")
-    print("5. Auto (Daily & Swap)")
-    print("6. Exit")
-    return input("Pilih menu (1-6): ")
+    print("5. Auto (Daily & Swap & Send INI to Self)")
+    print("6. Send INI to Self")
+    print("7. Exit")
+    return input("Pilih menu (1-7): ")
 
 def cycle_swap(private_keys):
     """Melakukan cycle swap setiap 10 menit"""
@@ -926,6 +936,74 @@ def show_logo():
     print("\nIniChain Bot v1.0 - Automated Daily Check-in & Swap by Aethereal")
     print("=================================================")
 
+def send_ini_to_self(private_keys):
+    """Mengirim INI ke alamat sendiri dengan jumlah 3-5% dari saldo"""
+    for i, private_key in enumerate(private_keys, 1):
+        try:
+            bot = IniChainBot(private_key)
+            account_info = f"Account {i} | {bot.address[-4:]}"
+            
+            # Get current balance
+            balance = w3.eth.get_balance(bot.address)
+            formatted_balance = w3.from_wei(balance, 'ether')
+            
+            # Calculate gas cost for safety
+            gas_price = bot.get_gas_price()
+            estimated_gas = 21000  # Standard gas untuk transfer
+            gas_cost = gas_price * estimated_gas
+            
+            # Calculate safe balance (balance - gas cost)
+            safe_balance = balance - gas_cost
+            
+            if safe_balance <= 0:
+                print(f"[{account_info}] Saldo tidak cukup untuk transfer")
+                print(f"[{account_info}] Saldo saat ini: {formatted_balance:.6f} INI")
+                print(f"[{account_info}] Estimasi biaya gas: {w3.from_wei(gas_cost, 'ether'):.6f} INI")
+                continue
+            
+            # Calculate random amount between 3-5% of safe balance
+            percentage = random.uniform(0.03, 0.05)
+            amount_to_send = int(safe_balance * percentage)
+            
+            if amount_to_send <= 0:
+                print(f"[{account_info}] Jumlah transfer terlalu kecil")
+                continue
+            
+            print(f"\n[{account_info}] Memulai transfer INI ke diri sendiri...")
+            print(f"[{account_info}] Saldo saat ini: {formatted_balance:.6f} INI")
+            print(f"[{account_info}] Jumlah transfer: {w3.from_wei(amount_to_send, 'ether'):.6f} INI ({percentage*100:.2f}%)")
+            print(f"[{account_info}] Gas price: {w3.from_wei(gas_price, 'gwei'):.2f} Gwei")
+            
+            # Build transaction
+            transaction = {
+                'from': bot.address,
+                'to': bot.address,
+                'value': amount_to_send,
+                'gas': estimated_gas,
+                'gasPrice': gas_price,
+                'nonce': w3.eth.get_transaction_count(bot.address),
+                'chainId': CHAIN_ID
+            }
+            
+            # Sign and send transaction
+            signed_txn = w3.eth.account.sign_transaction(transaction, bot.account.key)
+            tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            
+            # Wait for transaction receipt
+            receipt = bot.wait_for_transaction(tx_hash)
+            
+            if receipt and receipt['status'] == 1:
+                print(f"[{account_info}] Transfer berhasil!")
+                print(f"[{account_info}] Hash transaksi: {tx_hash.hex()}")
+            else:
+                print(f"[{account_info}] Transfer gagal!")
+                
+        except Exception as e:
+            print(f"[{account_info}] Error: {str(e)}")
+        
+        # Delay between accounts
+        time.sleep(5)
+
 def main():
     # Tampilkan logo saat startup
     show_logo()
@@ -970,6 +1048,10 @@ def main():
             print("Tekan Ctrl+C untuk menghentikan")
             auto_daily_and_swap(private_keys)
         elif choice == "6":
+            print("\n=== Send INI to Self ===")
+            print("Bot akan mengirim 3-5% INI ke alamat sendiri")
+            send_ini_to_self(private_keys)
+        elif choice == "7":
             print("\nTerima kasih telah menggunakan bot!")
             break
         else:
