@@ -307,7 +307,7 @@ class IniChainBot:
         balance = token_contract.functions.balanceOf(self.address).call()
         return balance
 
-    def wait_for_transaction(self, tx_hash, timeout=120):
+    def wait_for_transaction(self, tx_hash, timeout=300):
         """Wait for transaction to be mined and return receipt"""
         start_time = time.time()
         print(f"[{self.address}] Menunggu konfirmasi transaksi: {tx_hash.hex()}")
