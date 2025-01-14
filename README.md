@@ -72,11 +72,13 @@ python bot.py
 ```
 - *balance_checker BOT*
 ```bash
-python balance_checker/balance_checker.py
+cd balance_checker/
+python balance_checker.py
 ```
 - *CHECK IN BOT*
 ```bash
-python checkin_only/checkin.py
+cd checkin_only/
+python checkin.py
 ```
 - *Check S2 Eligibility BOT*
 ```bash
@@ -84,7 +86,8 @@ python checkin_only/checkin.py
 pip install -r S2-Elig-Checker/requirements.txt
 ```
 ```bash
-python S2-Elig-Checker/check_elig.py
+cd S2-Elig-Checker/
+python check_elig.py
 ```
 2. Pilih menu yang tersedia:
    - `1`: Check Status
