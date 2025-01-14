@@ -806,14 +806,14 @@ def auto_daily_and_swap(private_keys):
             print(f"Memulai cycle ke-{cycle_count}...")
             print(f"{'='*50}")
             
-            # Lakukan daily check-in
-            print("\nMemulai Daily Check-in...")
-            process_accounts(private_keys, "checkin")
-            print("Daily Check-in selesai!")
+            ## Lakukan daily check-in
+            #print("\nMemulai Daily Check-in...")
+            #process_accounts(private_keys, "checkin")
+            #print("Daily Check-in selesai!")
             
-            # Tunggu 5 detik sebelum swap
-            print("\nMenunggu 5 detik sebelum memulai swap...")
-            time.sleep(5)
+            ## Tunggu 5 detik sebelum swap
+            #print("\nMenunggu 5 detik sebelum memulai swap...")
+            #time.sleep(5)
             
             # Lakukan swap
             print("\nMemulai proses Swap...")
