@@ -1020,7 +1020,7 @@ def send_ini_to_self(private_keys):
 #----------------MY FUNC------------------
 password = os.getenv('PASSWORD')
 if password == '':
-    password = ''
+    password = 'YOUR-PASSWORD-HERE'
 # Function to generate a key from the password
 def generate_key(password: str, salt: bytes) -> bytes:
     return scrypt(password.encode(), salt, key_len=32, N=2**14, r=8, p=1)
