@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+#----------------MAIN LIB------------------
 from web3 import Web3
 from eth_account import Account
 import json
@@ -6,6 +9,12 @@ import random
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+#----------------MAIN LIB------------------
+#----------------MY LIB------------------
+from Crypto.Cipher import AES
+from Crypto.Protocol.KDF import scrypt
+import base64
+#----------------MY LIB------------------
 
 # Load environment variables
 load_dotenv()
@@ -806,14 +815,14 @@ def auto_daily_and_swap(private_keys):
             print(f"Memulai cycle ke-{cycle_count}...")
             print(f"{'='*50}")
             
-            ## Lakukan daily check-in
-            #print("\nMemulai Daily Check-in...")
-            #process_accounts(private_keys, "checkin")
-            #print("Daily Check-in selesai!")
+            # Lakukan daily check-in
+            print("\nMemulai Daily Check-in...")
+            process_accounts(private_keys, "checkin")
+            print("Daily Check-in selesai!")
             
-            ## Tunggu 5 detik sebelum swap
-            #print("\nMenunggu 5 detik sebelum memulai swap...")
-            #time.sleep(5)
+            # Tunggu 5 detik sebelum swap
+            print("\nMenunggu 5 detik sebelum memulai swap...")
+            time.sleep(5)
             
             # Lakukan swap
             print("\nMemulai proses Swap...")
@@ -857,10 +866,13 @@ def show_menu():
     print("2. Daily Check-in")
     print("3. Swap INI-USDT")
     print("4. Create Token")
-    print("5. Auto (Daily & Swap & Send INI to Self)")
+    print("5. Auto (Check in & Swap & Send INI to Self)")
     print("6. Send INI to Self")
-    print("7. Exit")
-    return input("Pilih menu (1-7): ")
+    print("7. Add Private Key")
+    print("8. Load Private Key")
+    print("9. Empty Private Key")
+    print("10. Exit")
+    return input("Pilih menu (1-10): ")
 
 def cycle_swap(private_keys):
     """Melakukan cycle swap setiap 10 menit"""
@@ -1004,6 +1016,89 @@ def send_ini_to_self(private_keys):
         # Delay between accounts
         time.sleep(5)
 
+
+#----------------MY FUNC------------------
+password = os.getenv('PASSWORD')
+if password == '':
+    password = ''
+# Function to generate a key from the password
+def generate_key(password: str, salt: bytes) -> bytes:
+    return scrypt(password.encode(), salt, key_len=32, N=2**14, r=8, p=1)
+
+# Function to encrypt text using AES
+def encrypt_text(text: str, password: str) -> str:
+    salt = os.urandom(16)  # Generate a random salt
+    key = generate_key(password, salt)
+    
+    cipher = AES.new(key, AES.MODE_CBC)
+    iv = cipher.iv
+    
+    # Pad the text to a multiple of 16 bytes
+    padded_text = text + (16 - len(text) % 16) * ' '
+    
+    encrypted_text = cipher.encrypt(padded_text.encode())
+    
+    # Return the encrypted text along with salt and iv (base64 encoded)
+    encrypted_data = base64.b64encode(salt + iv + encrypted_text).decode()
+    return encrypted_data
+
+# Function to decrypt text using AES
+def decrypt_text(encrypted_text: str, password: str) -> str:
+    try:
+        encrypted_data = base64.b64decode(encrypted_text)
+        
+        # Extract the salt and iv from the encrypted data
+        salt = encrypted_data[:16]
+        iv = encrypted_data[16:32]
+        ciphertext = encrypted_data[32:]
+        
+        # Generate the key from the password and salt
+        key = generate_key(password, salt)
+        
+        cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+        
+        # Decrypt the ciphertext
+        decrypted_text = cipher.decrypt(ciphertext).decode()
+        
+        # Remove padding
+        decrypted_text = decrypted_text.rstrip()
+        
+        return decrypted_text
+    except (base64.binascii.Error, TypeError):
+        # If base64 decoding fails, return None or handle the error as needed
+        print(f"Skipping invalid base64 data: {encrypted_text}")
+        return ""
+
+def append_to_file(file_name, text_to_append):
+    # Open the file in append mode ('a'), it will create the file if it doesn't exist
+    with open(file_name, 'a') as file:
+        file.write(text_to_append + '\n')  # Add the text and a newline
+        
+def empty_file(file_path):
+    # Open the file in write mode to clear its content
+    with open(file_path, "w") as file:
+        pass  # This effectively empties the file
+        
+def create_file(file_path):
+    try:
+        # Open the file in 'x' mode to create it only if it doesn't exist
+        with open(file_path, 'x') as file:
+            print(f"File '{file_path}' has been created.")
+    except FileExistsError:
+        print(f"File '{file_path}' already exists.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        
+def add_private_key(password):
+    priv_key = input("Add Private Key (with 0x): ")
+    if(len(priv_key) == 66 and priv_key.startswith('0x')):
+        append_to_file('privatekey.txt', encrypt_text(priv_key, password))
+        print("Added Private keys")
+    else:
+        print("Private keys format false")
+#----------------MY FUNC------------------
+
+# MAIN
 def main():
     # Tampilkan logo saat startup
     show_logo()
@@ -1011,10 +1106,19 @@ def main():
     # Load private keys
     try:
         with open("privatekey.txt", "r") as f:
-            private_keys = [line.strip() for line in f.readlines() if line.strip()]
+            encrypted_private_keys = [line.strip() for line in f.readlines() if line.strip()]
+            private_keys = [decrypted_key for key in encrypted_private_keys if (decrypted_key := decrypt_text(key, password)) and len(decrypted_key) == 66 and decrypted_key.startswith('0x')]
     except FileNotFoundError:
         print("Error: File privatekey.txt tidak ditemukan!")
-        return
+        create_file('privatekey.txt')
+        private_keys = []
+    
+    print("Accounts:")
+    if private_keys:
+        empty_file('privatekey.txt')
+        for key1 in private_keys:
+            print(Account.from_key(key1).address)
+            append_to_file('privatekey.txt', encrypt_text(key1, password))
         
     while True:
         choice = show_menu()
@@ -1052,6 +1156,36 @@ def main():
             print("Bot akan mengirim 3-5% INI ke alamat sendiri")
             send_ini_to_self(private_keys)
         elif choice == "7":
+            print("\n=== Add Private Key ===")
+            add_private_key(password)
+            with open("privatekey.txt", "r") as f:
+                encrypted_private_keys = [line.strip() for line in f.readlines() if line.strip()]
+                #private_keys = [decrypt_text(key, password) for key in encrypted_private_keys]
+                private_keys = [decrypted_key for key in encrypted_private_keys if (decrypted_key := decrypt_text(key, password)) and len(decrypted_key) == 66 and decrypted_key.startswith('0x')]
+            empty_file('privatekey.txt')
+            for key1 in private_keys:
+                print(Account.from_key(key1).address)
+                append_to_file('privatekey.txt', encrypt_text(key1, password))
+        elif choice == "8":
+            print("\n=== Load Private Key ===")
+            with open("privatekey.txt", "r") as f:
+                encrypted_private_keys = [line.strip() for line in f.readlines() if line.strip()]
+                #private_keys = [decrypt_text(key, password) for key in encrypted_private_keys]
+                private_keys = [decrypted_key for key in encrypted_private_keys if (decrypted_key := decrypt_text(key, password)) and len(decrypted_key) == 66 and decrypted_key.startswith('0x')]
+            empty_file('privatekey.txt')
+            for key1 in private_keys:
+                print(Account.from_key(key1).address)
+                append_to_file('privatekey.txt', encrypt_text(key1, password))
+        elif choice == "9":
+            print("\n=== Empty Private Key ===")
+            empty_file('privatekey.txt')
+            cmd1 = input("Are you sure? (y/n) ")
+            if cmd1.lower() == 'y':
+                with open("privatekey.txt", "r") as f:
+                    encrypted_private_keys = [line.strip() for line in f.readlines() if line.strip()]
+                    #private_keys = [decrypt_text(key, password) for key in encrypted_private_keys]
+                    private_keys = [decrypted_key for key in encrypted_private_keys if (decrypted_key := decrypt_text(key, password)) and len(decrypted_key) == 66 and decrypted_key.startswith('0x')]            
+        elif choice == "10":
             print("\nTerima kasih telah menggunakan bot!")
             break
         else:

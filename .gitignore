@@ -3,3 +3,7 @@ privatekey.txt
 venv
 */venv
 privatekey.txt
+.env
+build
+bot.spec
+dist
