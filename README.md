@@ -72,12 +72,10 @@ It performs daily check-ins, token swaps, and other blockchain interactions, sim
 Activate Virtual Environment:
 ```powershell
 # WINDOWS
-python -m venv venv
 .\venv\Scripts\activate
 ```
 ```bash
 # LINUX / MAC
-python -m venv venv
 source venv/bin/activate
 ```
 
