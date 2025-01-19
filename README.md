@@ -105,16 +105,6 @@ pip install python-dotenv
 
 ---
 
-## Smart Contract Details
-
-- **Daily Check-In**: `0x73439c32e125B28139823fE9C6C079165E94C6D1`
-- **Router**: `0x4ccB784744969D9B63C15cF07E622DDA65A88Ee7`
-- **WINI**: `0xfbECae21C91446f9c7b87E4e5869926998f99ffe`
-- **USDT**: `0xcF259Bca0315C6D32e877793B6a10e97e7647FdE`
-- **Token Factory**: `0x01AA0e004F7e7591f2fc2712384dF9B5FDB759DD`
-
----
-
 ## Key Functionalities
 
 ### Daily Check-In
