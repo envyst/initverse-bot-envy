@@ -43,12 +43,24 @@ It performs daily check-ins, token swaps, and other blockchain interactions, sim
    cd initverse-bot-envy
    ```
 
-2. Install Python dependencies:
+2. Create Virtual Environment:
+   ```powershell
+   # WINDOWS
+   python -m venv venv
+   .\venv\Scripts\activate
+   ```
+   ```bash
+   # LINUX / MAC
+   python -m venv venv
+   source venv/bin/activate
+   ```
+
+3. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Edit `bot.py` file with your password:
+4. Edit `bot.py` file with your password:
    ```py
    password = 'YOUR-PASSWORD-HERE'
    ```
@@ -56,6 +68,18 @@ It performs daily check-ins, token swaps, and other blockchain interactions, sim
 ---
 
 ## Usage
+
+Activate Virtual Environment:
+```powershell
+# WINDOWS
+python -m venv venv
+.\venv\Scripts\activate
+```
+```bash
+# LINUX / MAC
+python -m venv venv
+source venv/bin/activate
+```
 
 Run the bot using:
 ```bash
